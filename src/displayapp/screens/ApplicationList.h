@@ -46,6 +46,8 @@ namespace Pinetime {
             {Symbols::chartLine, Apps::Motion},
             {Symbols::drum, Apps::Metronome},
             {Symbols::map, Apps::Navigation},
+
+            {Symbols::calculator, Apps::Calculator},
           };
           std::array<std::array<Tile::Applications, appsPerScreen>, ((std::size(list) + appsPerScreen - 1) / appsPerScreen)> r{};;
           int idx = 0;
