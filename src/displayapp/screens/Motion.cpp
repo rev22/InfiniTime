@@ -19,7 +19,7 @@ Motion::Motion(Pinetime::Applications::DisplayApp* app, Controllers::MotionContr
 
   /*Add 3 data series*/
   ser1 = lv_chart_add_series(chart, LV_COLOR_RED);
-  ser2 = lv_chart_add_series(chart, LV_COLOR_GREEN);
+  ser2 = lv_chart_add_series(chart, LV_COLOR_LIME);
   ser3 = lv_chart_add_series(chart, LV_COLOR_YELLOW);
 
   lv_chart_init_points(chart, ser1, 0);

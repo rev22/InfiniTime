@@ -37,7 +37,7 @@ HeartRate::HeartRate(Pinetime::Applications::DisplayApp* app,
   lv_obj_set_style_local_text_font(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_76);
 
   if (isHrRunning)
-    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GREEN);
+    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_LIME);
   else
     lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
 
@@ -97,7 +97,7 @@ void HeartRate::OnStartStopEvent(lv_event_t event) {
       heartRateController.Start();
       UpdateStartStopButton(heartRateController.State() != Controllers::HeartRateController::States::Stopped);
       systemTask.PushMessage(Pinetime::System::Messages::DisableSleeping);
-      lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GREEN);
+      lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_LIME);
     } else {
       heartRateController.Stop();
       UpdateStartStopButton(heartRateController.State() != Controllers::HeartRateController::States::Stopped);
