@@ -113,8 +113,8 @@ void StopWatch::Reset() {
 void StopWatch::Start() {
   lv_obj_set_state(btnStopLap, LV_STATE_DEFAULT);
   lv_obj_set_state(txtStopLap, LV_STATE_DEFAULT);
-  lv_obj_set_style_local_text_color(time, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x0, 0xb0, 0x0));
-  lv_obj_set_style_local_text_color(msecTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x0, 0xb0, 0x0));
+  lv_obj_set_style_local_text_color(time, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_LIME);
+  lv_obj_set_style_local_text_color(msecTime, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_LIME);
   lv_label_set_text_static(txtPlayPause, Symbols::pause);
   lv_label_set_text_static(txtStopLap, Symbols::lapsFlag);
   startTime = xTaskGetTickCount();
