@@ -319,6 +319,7 @@ void SystemTask::Work() {
           break;
         case Messages::StopRinging:
           motorController.StopRinging();
+          alarmController.OnStopRinging();
           break;
         case Messages::BleConnected:
           ReloadIdleTimer();
@@ -402,7 +403,8 @@ void SystemTask::Work() {
           break;
         case Messages::OnNewHour:
           using Pinetime::Controllers::AlarmController;
-          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::Hours && alarmController.State() != AlarmController::AlarmState::Alerting) {
+          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::Hours &&
+              alarmController.State() != AlarmController::AlarmState::Alerting) {
             if (isSleeping && !isWakingUp) {
               GoToRunning();
               displayApp.PushMessage(Pinetime::Applications::Display::Messages::Clock);
@@ -412,7 +414,8 @@ void SystemTask::Work() {
           break;
         case Messages::OnNewHalfHour:
           using Pinetime::Controllers::AlarmController;
-          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::HalfHours && alarmController.State() != AlarmController::AlarmState::Alerting) {
+          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::HalfHours &&
+              alarmController.State() != AlarmController::AlarmState::Alerting) {
             if (isSleeping && !isWakingUp) {
               GoToRunning();
               displayApp.PushMessage(Pinetime::Applications::Display::Messages::Clock);
@@ -442,7 +445,7 @@ void SystemTask::Work() {
           displayApp.PushMessage(Pinetime::Applications::Display::Messages::ShowPairingKey);
           break;
         case Messages::BleRadioEnableToggle:
-          if(settingsController.GetBleRadioEnabled()) {
+          if (settingsController.GetBleRadioEnabled()) {
             nimbleController.EnableRadio();
           } else {
             nimbleController.DisableRadio();
