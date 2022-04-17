@@ -44,6 +44,25 @@ void AlarmController::SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin) {
   minutes = alarmMin;
 }
 
+void AlarmController::OnAdjustTime() {
+
+  if (state != AlarmState::Set) {
+    return;
+  }
+
+  xTimerStop(alarmAppTimer, 0);
+  auto now = dateTimeController.CurrentDateTime();
+
+  if (now > alarmTime) {
+    xTimerChangePeriod(alarmAppTimer, 1, 0);
+  } else {
+    auto mSecToAlarm = std::chrono::duration_cast<std::chrono::milliseconds>(alarmTime - now).count();
+    xTimerChangePeriod(alarmAppTimer, APP_TIMER_TICKS(mSecToAlarm), 0);
+  }
+
+  xTimerStart(alarmAppTimer, 0);
+}
+
 void AlarmController::ScheduleAlarm() {
   // Determine the next time the alarm needs to go off and set the timer
   xTimerStop(alarmAppTimer, 0);
