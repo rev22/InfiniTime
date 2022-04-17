@@ -152,8 +152,7 @@ void SystemTask::Work() {
   batteryController.Register(this);
   motorController.Init();
   motionSensor.SoftReset();
-  timerController.Register(this);
-  timerController.Init();
+  timerController.Init(this);
   alarmController.Init(this);
 
   // Reset the TWI device because the motion sensor chip most probably crashed it...
