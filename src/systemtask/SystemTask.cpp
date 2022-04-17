@@ -283,9 +283,12 @@ void SystemTask::Work() {
           heartRateApp.PushMessage(Pinetime::Applications::HeartRateTask::Messages::GoToSleep);
           break;
         case Messages::OnNewTime:
+        case Messages::OnAdjustTime:
           ReloadIdleTimer();
           displayApp.PushMessage(Pinetime::Applications::Display::Messages::UpdateDateTime);
-          if (alarmController.State() == Controllers::AlarmController::AlarmState::Set) {
+          if (message == Messages::OnAdjustTime) {
+            alarmController.OnAdjustTime();
+          } else {
             alarmController.ScheduleAlarm();
           }
           break;

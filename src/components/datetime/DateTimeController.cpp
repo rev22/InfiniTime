@@ -30,6 +30,7 @@ void DateTime::SetTime(
     /* .tm_year = */ year - 1900,
   };
   tm.tm_isdst = -1; // Use DST value from local time zone
+  auto previousDateTime = currentDateTime;
   currentDateTime = std::chrono::system_clock::from_time_t(std::mktime(&tm));
 
   NRF_LOG_INFO("%d %d %d ", day, month, year);
@@ -40,7 +41,17 @@ void DateTime::SetTime(
   NRF_LOG_INFO("* %d %d %d ", this->hour, this->minute, this->second);
   NRF_LOG_INFO("* %d %d %d ", this->day, this->month, this->year);
 
-  systemTask->PushMessage(System::Messages::OnNewTime);
+  decltype(currentDateTime - previousDateTime) timeDifference;
+
+  if (currentDateTime > previousDateTime) {
+    timeDifference = currentDateTime - previousDateTime;
+  } else {
+    timeDifference = previousDateTime - currentDateTime;
+  }
+
+  using namespace std::chrono_literals;
+
+  systemTask->PushMessage(timeDifference < 3h ? System::Messages::OnAdjustTime : System::Messages::OnNewTime);
 }
 
 void DateTime::UpdateTime(uint32_t systickCounter) {
@@ -129,16 +140,16 @@ std::string DateTime::FormattedTime() {
   // Return time as a string in 12- or 24-hour format
   char buff[9];
   if (settingsController.GetClockType() == ClockType::H12) {
-      uint8_t hour12;
-      const char* amPmStr;
-      if (hour < 12) {
-        hour12 = (hour == 0) ? 12 : hour;
-        amPmStr = "AM";
-      } else {
-        hour12 = (hour == 12) ? 12 : hour - 12;
-        amPmStr = "PM";
-      }
-      sprintf(buff, "%i:%02i %s", hour12, minute, amPmStr);
+    uint8_t hour12;
+    const char* amPmStr;
+    if (hour < 12) {
+      hour12 = (hour == 0) ? 12 : hour;
+      amPmStr = "AM";
+    } else {
+      hour12 = (hour == 12) ? 12 : hour - 12;
+      amPmStr = "PM";
+    }
+    sprintf(buff, "%i:%02i %s", hour12, minute, amPmStr);
   } else {
     sprintf(buff, "%02i:%02i", hour, minute);
   }

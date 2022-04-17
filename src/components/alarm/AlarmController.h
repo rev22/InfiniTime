@@ -33,6 +33,7 @@ namespace Pinetime {
 
       void SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin);
       void ScheduleAlarm();
+      void OnAdjustTime();
       void DisableAlarm();
       void SetOffAlarmNow();
       uint32_t SecondsToAlarm();
