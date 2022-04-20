@@ -17,6 +17,8 @@
 */
 #pragma once
 
+#include <FreeRTOS.h>
+#include <timers.h>
 #include <cstdint>
 #include "components/datetime/DateTimeController.h"
 
@@ -29,9 +31,9 @@ namespace Pinetime {
     public:
       AlarmController(Controllers::DateTime& dateTimeController);
 
-      void Init(System::SystemTask* systemTask);
       void SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin);
       void ScheduleAlarm();
+      void OnAdjustTime();
       void DisableAlarm();
       void SetOffAlarmNow();
       uint32_t SecondsToAlarm();
@@ -54,9 +56,15 @@ namespace Pinetime {
         recurrence = recurType;
       }
 
+    protected:
+      friend class Pinetime::System::SystemTask;
+      void Init(System::SystemTask* systemTask);
+      void OnStopRinging();
+
     private:
       Controllers::DateTime& dateTimeController;
       System::SystemTask* systemTask = nullptr;
+      TimerHandle_t alarmAppTimer;
       uint8_t hours = 7;
       uint8_t minutes = 0;
       std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> alarmTime;

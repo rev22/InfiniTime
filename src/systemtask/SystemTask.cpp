@@ -127,8 +127,6 @@ void SystemTask::Work() {
   NRF_LOG_INFO("Last reset reason : %s", Pinetime::Drivers::Watchdog::ResetReasonToString(watchdog.ResetReason()));
   APP_GPIOTE_INIT(2);
 
-  app_timer_init();
-
   spi.Init();
   spiNorFlash.Init();
   spiNorFlash.Wakeup();
@@ -152,8 +150,7 @@ void SystemTask::Work() {
   batteryController.Register(this);
   motorController.Init();
   motionSensor.SoftReset();
-  timerController.Register(this);
-  timerController.Init();
+  timerController.Init(this);
   alarmController.Init(this);
 
   // Reset the TWI device because the motion sensor chip most probably crashed it...
@@ -287,9 +284,12 @@ void SystemTask::Work() {
           heartRateApp.PushMessage(Pinetime::Applications::HeartRateTask::Messages::GoToSleep);
           break;
         case Messages::OnNewTime:
+        case Messages::OnAdjustTime:
           ReloadIdleTimer();
           displayApp.PushMessage(Pinetime::Applications::Display::Messages::UpdateDateTime);
-          if (alarmController.State() == Controllers::AlarmController::AlarmState::Set) {
+          if (message == Messages::OnAdjustTime) {
+            alarmController.OnAdjustTime();
+          } else {
             alarmController.ScheduleAlarm();
           }
           break;
@@ -319,6 +319,7 @@ void SystemTask::Work() {
           break;
         case Messages::StopRinging:
           motorController.StopRinging();
+          alarmController.OnStopRinging();
           break;
         case Messages::BleConnected:
           ReloadIdleTimer();
@@ -402,7 +403,8 @@ void SystemTask::Work() {
           break;
         case Messages::OnNewHour:
           using Pinetime::Controllers::AlarmController;
-          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::Hours && alarmController.State() != AlarmController::AlarmState::Alerting) {
+          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::Hours &&
+              alarmController.State() != AlarmController::AlarmState::Alerting) {
             if (isSleeping && !isWakingUp) {
               GoToRunning();
               displayApp.PushMessage(Pinetime::Applications::Display::Messages::Clock);
@@ -412,7 +414,8 @@ void SystemTask::Work() {
           break;
         case Messages::OnNewHalfHour:
           using Pinetime::Controllers::AlarmController;
-          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::HalfHours && alarmController.State() != AlarmController::AlarmState::Alerting) {
+          if (settingsController.GetChimeOption() == Controllers::Settings::ChimesOption::HalfHours &&
+              alarmController.State() != AlarmController::AlarmState::Alerting) {
             if (isSleeping && !isWakingUp) {
               GoToRunning();
               displayApp.PushMessage(Pinetime::Applications::Display::Messages::Clock);
@@ -442,7 +445,7 @@ void SystemTask::Work() {
           displayApp.PushMessage(Pinetime::Applications::Display::Messages::ShowPairingKey);
           break;
         case Messages::BleRadioEnableToggle:
-          if(settingsController.GetBleRadioEnabled()) {
+          if (settingsController.GetBleRadioEnabled()) {
             nimbleController.EnableRadio();
           } else {
             nimbleController.DisableRadio();

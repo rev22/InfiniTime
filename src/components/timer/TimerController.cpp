@@ -4,32 +4,29 @@
 
 #include "components/timer/TimerController.h"
 #include "systemtask/SystemTask.h"
-#include "app_timer.h"
 #include "task.h"
 
 using namespace Pinetime::Controllers;
 
-
-APP_TIMER_DEF(timerAppTimer);
-
 namespace {
-  void TimerEnd(void* p_context) {
-    auto* controller = static_cast<Pinetime::Controllers::TimerController*> (p_context);
-    if(controller != nullptr)
-      controller->OnTimerEnd();
+  void TimerEnd(TimerHandle_t xTimer) {
+    auto controller = static_cast<Pinetime::Controllers::TimerController*>(pvTimerGetTimerID(xTimer));
+    controller->OnTimerEnd();
   }
 }
 
-
-void TimerController::Init() {
-  app_timer_create(&timerAppTimer, APP_TIMER_MODE_SINGLE_SHOT, TimerEnd);
+void TimerController::Init(System::SystemTask* systemTask) {
+  this->systemTask = systemTask;
+  timerAppTimer = xTimerCreate("timerAppTm", 1, pdFALSE, this, TimerEnd);
 }
 
 void TimerController::StartTimer(uint32_t duration) {
-  app_timer_stop(timerAppTimer);
+  xTimerStop(timerAppTimer, 0);
   auto currentTicks = xTaskGetTickCount();
-  app_timer_start(timerAppTimer, APP_TIMER_TICKS(duration), this);
-  endTicks = currentTicks + APP_TIMER_TICKS(duration);
+  TickType_t durationTicks = APP_TIMER_TICKS(duration);
+  xTimerChangePeriod(timerAppTimer, durationTicks, 0);
+  xTimerStart(timerAppTimer, 0);
+  endTicks = currentTicks + durationTicks;
   timerRunning = true;
 }
 
@@ -38,7 +35,7 @@ uint32_t TimerController::GetTimeRemaining() {
     return 0;
   }
   auto currentTicks = xTaskGetTickCount();
-  
+
   TickType_t deltaTicks = 0;
   if (currentTicks > endTicks) {
     deltaTicks = 0xffffffff - currentTicks;
@@ -46,12 +43,12 @@ uint32_t TimerController::GetTimeRemaining() {
   } else {
     deltaTicks = endTicks - currentTicks;
   }
-  
+
   return (static_cast<TickType_t>(deltaTicks) / static_cast<TickType_t>(configTICK_RATE_HZ)) * 1000;
 }
 
 void TimerController::StopTimer() {
-  app_timer_stop(timerAppTimer);
+  xTimerStop(timerAppTimer, 0);
   timerRunning = false;
 }
 
@@ -60,10 +57,6 @@ bool TimerController::IsRunning() {
 }
 void TimerController::OnTimerEnd() {
   timerRunning = false;
-  if(systemTask != nullptr)
+  if (systemTask != nullptr)
     systemTask->PushMessage(System::Messages::OnTimerDone);
-}
-
-void TimerController::Register(Pinetime::System::SystemTask* systemTask) {
-  this->systemTask = systemTask;
 }
