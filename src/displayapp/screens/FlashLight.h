@@ -13,14 +13,20 @@ namespace Pinetime {
 
       class FlashLight : public Screen {
       public:
-        FlashLight(DisplayApp* app, System::SystemTask& systemTask, Controllers::BrightnessController& brightness);
+        FlashLight(DisplayApp* app, System::SystemTask& systemTask, Controllers::BrightnessController& brightness, lv_color_t color = LV_COLOR_WHITE);
         ~FlashLight() override;
 
         bool OnTouchEvent(Pinetime::Applications::TouchEvents event) override;
 
       private:
         inline void OnClickEvent(lv_obj_t* obj, lv_event_t event) {
-          if (obj == backgroundAction && event == LV_EVENT_CLICKED) {
+          if (obj == backgroundAction) {
+            if (event == LV_EVENT_CLICKED) {
+            } else if (event == LV_EVENT_LONG_PRESSED) {
+              color = (color.full == LV_COLOR_WHITE.full) ? LV_COLOR_RED : LV_COLOR_WHITE;
+            } else {
+              return;
+            }
             Update(!isOn, brightnessLevel);
           }
         }
@@ -35,6 +41,7 @@ namespace Pinetime {
         lv_obj_t* flashLight;
         lv_obj_t* backgroundAction;
         lv_obj_t* indicators[3];
+        lv_color_t color;
         bool isOn = false;
       };
     }

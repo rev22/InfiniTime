@@ -15,10 +15,12 @@ void FlashLight::EventHandler(lv_obj_t* obj, lv_event_t event) {
 
 FlashLight::FlashLight(Pinetime::Applications::DisplayApp* app,
                        System::SystemTask& systemTask,
-                       Controllers::BrightnessController& brightnessController)
+                       Controllers::BrightnessController& brightnessController,
+                       lv_color_t color)
   : Screen(app),
     systemTask {systemTask},
-    brightnessController {brightnessController}
+    brightnessController {brightnessController},
+    color {color}
 
 {
   brightnessLevel = brightnessController.Level();
@@ -75,21 +77,21 @@ void FlashLight::Update(bool on, Controllers::BrightnessController::Levels level
     isOn = on;
     if (isOn) {
       brightnessController.Backup();
-      lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+      lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
       lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
       for (auto & i : indicators) {
         lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, LV_COLOR_WHITE);
+        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, color);
         lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
       }
     } else {
       brightnessController.Restore();
       lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
-      lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+      lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color);
       for (auto & i : indicators) {
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
         lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, LV_COLOR_BLACK);
-        lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+        lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
       }
     }
   }

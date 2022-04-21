@@ -122,11 +122,14 @@ void QuickSettings::UpdateScreen() {
 }
 
 void QuickSettings::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
-  if (object == btn2 && event == LV_EVENT_CLICKED) {
-
-    running = false;
-    app->StartApp(Apps::FlashLight, DisplayApp::FullRefreshDirections::Up);
-
+  if (object == btn2) {
+    if (event == LV_EVENT_CLICKED) {
+      running = false;
+      app->StartApp(Apps::FlashLight, DisplayApp::FullRefreshDirections::Up);
+    } else if (event == LV_EVENT_LONG_PRESSED) {
+      running = false;
+      app->StartApp(Apps::FlashLightRed, DisplayApp::FullRefreshDirections::Up);
+    }
   } else if (object == btn1 && event == LV_EVENT_CLICKED) {
 
     brightness.Step();
