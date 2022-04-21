@@ -429,6 +429,10 @@ void DisplayApp::LoadApp(Apps app, DisplayApp::FullRefreshDirections direction) 
       currentScreen = std::make_unique<Screens::FlashLight>(this, *systemTask, brightnessController);
       ReturnApp(Apps::QuickSettings, FullRefreshDirections::Down, TouchEvents::SwipeDown);
       break;
+    case Apps::FlashLightRed:
+      currentScreen = std::make_unique<Screens::FlashLight>(this, *systemTask, brightnessController, LV_COLOR_RED);
+      ReturnApp(Apps::QuickSettings, FullRefreshDirections::Down, TouchEvents::SwipeDown);
+      break;
     case Apps::StopWatch:
       currentScreen = std::make_unique<Screens::StopWatch>(this, *systemTask);
       break;
