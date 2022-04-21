@@ -20,7 +20,6 @@ namespace Pinetime::Applications::Screens {
 
   private:
     void CreateButtons();
-    bool running;
     uint8_t secondsToSet = 0;
     uint8_t minutesToSet = 0;
     Controllers::TimerController& timerController;
