@@ -45,7 +45,7 @@ void Timer::CreateButtons() {
 }
 
 Timer::Timer(DisplayApp* app, Controllers::TimerController& timerController)
-  : Screen(app), running {true}, timerController {timerController} {
+  : Screen(app), timerController {timerController} {
 
   time = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_font(time, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_76);
