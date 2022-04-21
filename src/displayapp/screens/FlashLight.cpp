@@ -5,12 +5,12 @@
 using namespace Pinetime::Applications::Screens;
 
 namespace {
-  void event_handler(lv_obj_t* obj, lv_event_t event) {
-    auto* screen = static_cast<FlashLight*>(obj->user_data);
-    screen->OnClickEvent(obj, event);
-  }
-
   typedef Pinetime::Controllers::BrightnessController::Levels Levels;
+}
+
+void FlashLight::EventHandler(lv_obj_t* obj, lv_event_t event) {
+  auto* screen = static_cast<FlashLight*>(obj->user_data);
+  screen->OnClickEvent(obj, event);
 }
 
 FlashLight::FlashLight(Pinetime::Applications::DisplayApp* app,
@@ -47,7 +47,7 @@ FlashLight::FlashLight(Pinetime::Applications::DisplayApp* app,
   lv_label_set_text_static(backgroundAction, "");
   lv_obj_set_click(backgroundAction, true);
   backgroundAction->user_data = this;
-  lv_obj_set_event_cb(backgroundAction, event_handler);
+  lv_obj_set_event_cb(backgroundAction, EventHandler);
   systemTask.PushMessage(Pinetime::System::Messages::DisableSleeping);
 }
 
@@ -96,12 +96,6 @@ void FlashLight::Update(bool on, Controllers::BrightnessController::Levels level
 
   if (isOn) {
     brightnessController.Set(brightnessLevel);
-  }
-}
-
-void FlashLight::OnClickEvent(lv_obj_t* obj, lv_event_t event) {
-  if (obj == backgroundAction && event == LV_EVENT_CLICKED) {
-    Update(!isOn, brightnessLevel);
   }
 }
 
