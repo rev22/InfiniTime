@@ -24,7 +24,7 @@ namespace Pinetime {
                       uint8_t numScreens,
                       DisplayApp* app,
                       Controllers::Settings& settingsController,
-                      std::array<Applications, MAXLISTITEMS>& applications);
+                      const std::array<Applications, MAXLISTITEMS>& applications);
         ~List() override;
 
         void OnButtonEvent(lv_obj_t* object, lv_event_t event);

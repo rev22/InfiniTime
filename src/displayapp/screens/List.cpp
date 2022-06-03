@@ -15,7 +15,7 @@ List::List(uint8_t screenID,
            uint8_t numScreens,
            DisplayApp* app,
            Controllers::Settings& settingsController,
-           std::array<Applications, MAXLISTITEMS>& applications)
+           const std::array<Applications, MAXLISTITEMS>& applications)
   : Screen(app), settingsController {settingsController} {
 
   // Set the background to Black

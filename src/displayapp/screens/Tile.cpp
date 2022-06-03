@@ -28,7 +28,7 @@ Tile::Tile(uint8_t screenID,
            Controllers::Settings& settingsController,
            Pinetime::Controllers::Battery& batteryController,
            Controllers::DateTime& dateTimeController,
-           std::array<Applications, 6>& applications)
+           const std::array<Applications, 6>& applications)
   : Screen(app), batteryController {batteryController}, dateTimeController {dateTimeController} {
 
   settingsController.SetAppMenu(screenID);

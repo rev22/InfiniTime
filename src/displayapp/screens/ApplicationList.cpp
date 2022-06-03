@@ -6,7 +6,6 @@
 
 using namespace Pinetime::Applications::Screens;
 
-constexpr std::array<Tile::Applications, ApplicationList::applications.size()> ApplicationList::applications;
 
 auto ApplicationList::CreateScreenList() const {
   std::array<std::function<std::unique_ptr<Screen>()>, nScreens> screens;
@@ -38,11 +37,6 @@ bool ApplicationList::OnTouchEvent(Pinetime::Applications::TouchEvents event) {
 }
 
 std::unique_ptr<Screen> ApplicationList::CreateScreen(unsigned int screenNum) const {
-  std::array<Tile::Applications, appsPerScreen> apps;
-  for (int i = 0; i < appsPerScreen; i++) {
-    apps[i] = applications[screenNum * appsPerScreen + i];
-  }
-
-  return std::make_unique<Screens::Tile>(screenNum, nScreens, app, settingsController, batteryController, dateTimeController, apps);
+  return std::make_unique<Screens::Tile>(screenNum, nScreens, app, settingsController, batteryController, dateTimeController, applications[screenNum]);
 }
 

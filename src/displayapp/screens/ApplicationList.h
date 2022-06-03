@@ -31,22 +31,37 @@ namespace Pinetime {
         Controllers::DateTime& dateTimeController;
 
         static constexpr int appsPerScreen = 6;
-        static constexpr std::array<Tile::Applications, appsPerScreen * 2> applications {{
-          {Symbols::stopWatch, Apps::StopWatch},
-          {Symbols::clock, Apps::Alarm},
-          {Symbols::hourGlass, Apps::Timer},
-          {Symbols::shoe, Apps::Steps},
-          {Symbols::heartBeat, Apps::HeartRate},
-          {Symbols::music, Apps::Music},
+        static constexpr auto applications{[]() constexpr{
+          constexpr Tile::Applications list[] = {
+            {Symbols::stopWatch, Apps::StopWatch},
+            {Symbols::clock, Apps::Alarm},
+            {Symbols::hourGlass, Apps::Timer},
+            {Symbols::shoe, Apps::Steps},
+            {Symbols::heartBeat, Apps::HeartRate},
+            {Symbols::music, Apps::Music},
 
-          {Symbols::paintbrush, Apps::Paint},
-          {Symbols::paddle, Apps::Paddle},
-          {"2", Apps::Twos},
-          {Symbols::chartLine, Apps::Motion},
-          {Symbols::drum, Apps::Metronome},
-          {Symbols::map, Apps::Navigation},
-        }};
-        static constexpr int nScreens = (applications.size() + appsPerScreen - 1) / appsPerScreen;
+            {Symbols::paintbrush, Apps::Paint},
+            {Symbols::paddle, Apps::Paddle},
+            {"2", Apps::Twos},
+            {Symbols::chartLine, Apps::Motion},
+            {Symbols::drum, Apps::Metronome},
+            {Symbols::map, Apps::Navigation},
+          };
+          std::array<std::array<Tile::Applications, appsPerScreen>, ((std::size(list) + appsPerScreen - 1) / appsPerScreen)> r{};;
+          int idx = 0;
+          for (auto& f : r) {
+            for (auto& e : f) {
+              if (idx < std::size(list)) {
+                e = list[idx];
+              } else {
+                e = { Symbols::none, Apps::None };
+              }
+              idx++;
+            }
+          }
+          return r;
+        }()};
+        static constexpr auto nScreens = std::size(applications);
         ScreenList<nScreens> screens;
       };
     }
