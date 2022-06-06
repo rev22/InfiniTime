@@ -19,6 +19,12 @@
 #include "systemtask/SystemTask.h"
 #include "task.h"
 #include <chrono>
+#include <ratio>
+#include <cstdint>
+
+namespace {
+  typedef std::chrono::duration< int64_t, std::ratio<1, configTICK_RATE_HZ> > ticks_t;
+}
 
 using namespace Pinetime::Controllers;
 using namespace std::chrono_literals;
@@ -44,7 +50,6 @@ void AlarmController::SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin) {
 }
 
 void AlarmController::OnAdjustTime() {
-
   if (state != AlarmState::Set) {
     return;
   }
@@ -55,8 +60,8 @@ void AlarmController::OnAdjustTime() {
   if (now >= alarmTime) {
     xTimerChangePeriod(alarmTimer, 1, 0);
   } else {
-    auto secondsToAlarm = std::chrono::duration_cast<std::chrono::seconds>(alarmTime - now).count();
-    xTimerChangePeriod(alarmTimer, 1 + secondsToAlarm * configTICK_RATE_HZ, 0);
+    auto ticksToAlarm = std::chrono::duration_cast<ticks_t>(alarmTime - now).count();
+    xTimerChangePeriod(alarmTimer, ++ticksToAlarm, 0);
   }
 
   xTimerStart(alarmTimer, 0);
@@ -94,8 +99,8 @@ void AlarmController::ScheduleAlarm() {
 
   // now can convert back to a time_point
   alarmTime = std::chrono::system_clock::from_time_t(std::mktime(tmAlarmTime));
-  auto secondsToAlarm = std::chrono::duration_cast<std::chrono::seconds>(alarmTime - now).count();
-  xTimerChangePeriod(alarmTimer, secondsToAlarm * configTICK_RATE_HZ, 0);
+  auto ticksToAlarm = std::chrono::duration_cast<ticks_t>(alarmTime - now).count();
+  xTimerChangePeriod(alarmTimer, ++ticksToAlarm, 0);
   xTimerStart(alarmTimer, 0);
 
   state = AlarmState::Set;
