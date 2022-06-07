@@ -16,10 +16,6 @@ void BatteryIcon::Create(lv_obj_t* parent) {
   lv_obj_set_style_local_radius(batteryJuice, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 0);
 }
 
-lv_obj_t* BatteryIcon::GetObject() {
-  return batteryImg;
-}
-
 void BatteryIcon::SetBatteryPercentage(uint8_t percentage) {
   lv_obj_set_height(batteryJuice, percentage * 14 / 100);
   lv_obj_realign(batteryJuice);
