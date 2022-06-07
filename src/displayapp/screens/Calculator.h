@@ -27,7 +27,8 @@ namespace Pinetime {
         char text[31];
         uint8_t position = 0;
 
-        void eval();
+        void Eval();
+        void Reset();
 
         Controllers::MotorController& motorController;
       };
