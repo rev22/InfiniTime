@@ -1,6 +1,5 @@
 #include "Calculator.h"
 #include <string>
-#include <stack>
 #include <cfloat>
 #include <cmath>
 #include <map>
@@ -8,81 +7,75 @@
 
 using namespace Pinetime::Applications::Screens;
 
-// Anonymous Namespace for all the structs
 namespace {
-  struct CalcTreeNode {
-    virtual double calculate() = 0;
+  template <typename X, uint8_t max_stack_len> struct Stack {
+    // Basic stack data type without dynamic allocations
+    X data[max_stack_len];
+    uint8_t stack_len = 0;
+    inline auto   size()   { return stack_len;                }
+    inline bool   empty()  { return size() == 0;              }
+    inline bool   full()   { return size() == max_stack_len;  }
+    inline X&  top()    { return data[stack_len-1];        }
+    inline X&  pop()    { return data[--stack_len];        }
+    inline X&  push()   { return data[stack_len++];        }
+    inline void push(X x) { X& datum{ push() }; datum = x; }
   };
-
-  struct NumNode : CalcTreeNode {
-    double value;
-
-    double calculate() override {
-      return value;
-    };
-  };
-
-  struct BinOp : CalcTreeNode {
-    std::shared_ptr<CalcTreeNode> left;
-    std::shared_ptr<CalcTreeNode> right;
-
-    char op;
-
-    double calculate() override {
-      // make sure we have actual numbers
-      if (!right || !left) {
-        errno = EINVAL;
-        return 0.0;
-      }
-
-      double rightVal = right->calculate();
-      double leftVal = left->calculate();
+  template <uint8_t max_stack_len> struct CalcStack : public Stack<double, max_stack_len> {
+    typedef Stack<double, max_stack_len> Super;
+    inline void pushValue(double value) {
+      Super::push(value);
+    }
+    bool pushOperator(char op) {
+      if (Super::size() < 2) return false;
+      double* node0 = Super::data + Super::stack_len;
+      // Call this only when stack_len >= 2
+      // Evaluate subexpressions as soon as possible
+      // Inf and NaN take care of error handling in case of non-finite results
+      auto& val2 { node0[-2] };
+      auto val1 = node0[-1];
       switch (op) {
-        case '^':
-          // detect overflow
-          if (log2(leftVal) + rightVal > 31) {
-            errno = ERANGE;
-            return 0.0;
-          }
-          return pow(leftVal, rightVal);
-        case 'x':
-          // detect over/underflowflow
-          if ((DBL_MAX / abs(rightVal)) < abs(leftVal)) {
-            errno = ERANGE;
-            return 0.0;
-          }
-          return leftVal * rightVal;
-        case '/':
-          // detect under/overflow
-          if ((DBL_MAX * abs(rightVal)) < abs(leftVal)) {
-            errno = ERANGE;
-            return 0.0;
-          }
-          // detect divison by zero
-          if (rightVal == 0.0) {
-            errno = EDOM;
-            return 0.0;
-          }
-          return leftVal / rightVal;
-        case '+':
-          // detect overflow
-          if ((DBL_MAX - rightVal) < leftVal) {
-            errno = ERANGE;
-            return 0.0;
-          }
-          return leftVal + rightVal;
-        case '-':
-          // detect underflow
-          if ((DBL_MIN + rightVal) > leftVal) {
-            errno = ERANGE;
-            return 0.0;
-          }
-          return leftVal - rightVal;
+      case '^':
+        val2 = pow(val2, val1);
+        break;
+      case 'x':
+        val2 *= val1;
+        break;
+      case '/':
+        val2 /= val1;
+        break;
+      case '+':
+        val2 += val1;
+        break;
+      case '-':
+        val2 -= val1;
+        break;
+      default:
+        return false;
       }
-      errno = EINVAL;
-      return 0.0;
-    };
+      Super::stack_len--;
+      return true;
+    }
   };
+
+  template <typename Input, typename Float, typename Sign> inline bool parseFloat(Input& i, Float& f, Sign& s) {
+    f = 0;
+    int8_t dot_position = -1;
+    while (!i.empty()) {
+      auto& c = i.top();
+      if ('0' <= c && c <= '9') {
+        if (dot_position >= 0) dot_position++;
+        f *= 10;
+        f += c - '0';
+      } else if ('.' == c) {
+        if (dot_position >= 0) return false;
+        dot_position = 0;
+      } else break;
+      i.pop();
+    }
+    while (dot_position-- > 0) f /= 10;
+    if (s < 0) { f = -f; }
+    return true;
+  }
 
   uint8_t getPrecedence(char op) {
     switch (op) {
@@ -110,8 +103,7 @@ namespace {
     }
     return false;
   }
-
-}
+};
 
 static void eventHandler(lv_obj_t* obj, lv_event_t event) {
   auto calc = static_cast<Calculator*>(obj->user_data);
@@ -139,7 +131,7 @@ static const char* buttonMap2[] = {
 Calculator::Calculator(DisplayApp* app, Controllers::MotorController& motorController) : Screen(app), motorController {motorController} {
   result = lv_label_create(lv_scr_act(), nullptr);
   lv_label_set_long_mode(result, LV_LABEL_LONG_BREAK);
-  lv_label_set_text(result, "0");
+  lv_label_set_text_static(result, "0");
   lv_obj_set_size(result, 180, 60);
   lv_obj_set_pos(result, 0, 0);
 
@@ -148,7 +140,7 @@ Calculator::Calculator(DisplayApp* app, Controllers::MotorController& motorContr
   lv_obj_set_pos(returnButton, 186, 0);
   lv_obj_t* returnLabel;
   returnLabel = lv_label_create(returnButton, nullptr);
-  lv_label_set_text(returnLabel, "<=");
+  lv_label_set_text_static(returnLabel, "<=");
   lv_obj_align(returnLabel, nullptr, LV_ALIGN_CENTER, 0, 0);
   returnButton->user_data = this;
   lv_obj_set_event_cb(returnButton, eventHandler);
@@ -162,65 +154,39 @@ Calculator::Calculator(DisplayApp* app, Controllers::MotorController& motorContr
   lv_obj_set_event_cb(buttonMatrix, eventHandler);
 }
 
-void Calculator::eval() {
-  std::stack<char> input {};
+bool Calculator::Eval() {
+  // The given sizes should be enough for parsing 30 characters
+  Stack<char, 32> input;
+  CalcStack<16> output;
+  Stack<char, 32> operators;
   for (int8_t i = position - 1; i >= 0; i--) {
     input.push(text[i]);
   }
-  std::stack<std::shared_ptr<CalcTreeNode>> output {};
-  std::stack<char> operators {};
   bool expectingNumber = true;
   int8_t sign = +1;
+  double resultFloat;
+  uint32_t lower, upper;
   while (!input.empty()) {
     if (input.top() == '.') {
       input.push('0');
     }
+
     if (isdigit(input.top())) {
-      char numberStr[31];
-      uint8_t strln = 0;
-      uint8_t pointpos = 0;
-      while (!input.empty() && (isdigit(input.top()) || input.top() == '.')) {
-        if (input.top() == '.') {
-          if (pointpos != 0) {
-            motorController.RunForDuration(10);
-            return;
-          }
-          pointpos = strln;
-        } else {
-          numberStr[strln] = input.top();
-          strln++;
-        }
-        input.pop();
-      }
-      // replacement for strtod() since using that increased .txt by 76858 bzt
-      if (pointpos == 0) {
-        pointpos = strln;
-      }
-      double num = 0;
-      for (uint8_t i = 0; i < pointpos; i++) {
-        num += (numberStr[i] - '0') * pow(10, pointpos - i - 1);
-      }
-      for (uint8_t i = 0; i < strln - pointpos; i++) {
-        num += (numberStr[i + pointpos] - '0') / pow(10, i + 1);
-      }
-
-      auto number = std::make_shared<NumNode>();
-      number->value = sign * num;
-      output.push(number);
-
+      if (!parseFloat(input, output.push(), sign)) return false;
       sign = +1;
       expectingNumber = false;
       continue;
     }
 
-    if (expectingNumber && input.top() == '+') {
-      input.pop();
-      continue;
-    }
-    if (expectingNumber && input.top() == '-') {
-      sign *= -1;
-      input.pop();
-      continue;
+    if (expectingNumber) {
+      switch (input.top()) {
+        case '-':
+          sign *= -1;
+          [[fallthrough]];
+        case '+':
+          input.pop();
+          continue;
+      }
     }
 
     char next = input.top();
@@ -241,26 +207,24 @@ void Calculator::eval() {
                    // or (the operator at the top of the operator stack has equal precedence and the token is left associative))
                    || (getPrecedence(operators.top()) == getPrecedence(next) && leftAssociative(next)))) {
           // need two elements on the output stack to add a binary operator
-          if (output.size() < 2) {
-            motorController.RunForDuration(10);
-            return;
-          }
-          auto node = std::make_shared<BinOp>();
-          node->right = output.top();
-          output.pop();
-          node->left = output.top();
-          output.pop();
-          node->op = operators.top();
+          if (!output.pushOperator(operators.top())) return false;
           operators.pop();
-          output.push(node);
         }
         operators.push(next);
         expectingNumber = true;
         break;
       case '(':
-        // we expect there to be a binary operator here but found a left parenthesis. this occurs in terms like this: a+b(c). This should be
-        // interpreted as a+b*(c)
-        if (!expectingNumber) {
+        if (expectingNumber) {
+          if (sign < 0) {
+            // Handle correctly expressions like: '-(5+11)' or '2*-(5+11)'
+            sign = 1;
+            output.pushValue(0);
+            operators.push('-');
+          }
+        } else {
+          // We expect there to be a binary operator here but found a left parenthesis.
+          // This occurs in terms like this: a+b(c).
+          // This should be interpreted as a+b*(c)
           operators.push('x');
         }
         operators.push(next);
@@ -269,126 +233,101 @@ void Calculator::eval() {
       case ')':
         while (operators.top() != '(') {
           // need two elements on the output stack to add a binary operator
-          if (output.size() < 2) {
-            motorController.RunForDuration(10);
-            return;
-          }
-          auto node = std::make_shared<BinOp>();
-          node->right = output.top();
-          output.pop();
-          node->left = output.top();
-          output.pop();
-          node->op = operators.top();
+          if (!output.pushOperator(operators.top())) return false;
           operators.pop();
-          output.push(node);
-          if (operators.empty()) {
-            motorController.RunForDuration(10);
-            return;
-          }
+          if (operators.empty()) return false;
         }
         // discard the left parentheses
         operators.pop();
     }
   }
   while (!operators.empty()) {
-    char op = operators.top();
-    if (op == ')' || op == '(') {
-      motorController.RunForDuration(10);
-      return;
-    }
-    // need two elements on the output stack to add a binary operator
-    if (output.size() < 2) {
-      motorController.RunForDuration(10);
-      return;
-    }
-    auto node = std::make_shared<BinOp>();
-    node->right = output.top();
-    output.pop();
-    node->left = output.top();
-    output.pop();
-    node->op = op;
+    if (!output.pushOperator(operators.top())) return false;
     operators.pop();
-    output.push(node);
   }
   // perform the calculation
-  errno = 0;
-  double resultFloat = output.top()->calculate();
-  if (errno != 0) {
-    motorController.RunForDuration(10);
-    return;
+  // assert(output.size() == 1);
+  resultFloat = output.data[0]; // this is the same as output.top() when output.size() == 1, but may reduce binary size
+  // make sure that the absolute value of the integral part of result fits in a 32 bit unsigned integer
+  sign = (resultFloat < 0);
+  if (sign) {
+    resultFloat = -resultFloat;
   }
-  // make sure the result fits in a 32 bit int
-  if (INT32_MAX < resultFloat || INT32_MIN > resultFloat) {
-    motorController.RunForDuration(10);
-    return;
+  if (!(resultFloat <= UINT32_MAX)) {
+    return false; // if too large or NaN
   }
-  // weird workaround because sprintf crashes when trying to use a float
-  int32_t upper = resultFloat;
-  int32_t lower = round(std::abs(resultFloat - upper) * 10000);
-  // round up to the next int value
-  if (lower >= 10000) {
+  if (sign) {
+    text[0] = '-';
+    position = 1;
+  } else {
+    position = 0;
+  }
+  // workaround: provided sprintf doesn't support floats
+  upper = resultFloat;
+  lower = round((resultFloat - upper) * 1000000);
+  if (lower >= 1000000) {
     lower = 0;
     upper++;
   }
-  // see if decimal places have to be printed
+  position += sprintf(text + position, "%lu", upper);
   if (lower != 0) {
-    if (upper == 0 && resultFloat < 0) {
-      position = sprintf(text, "-%ld.%ld", upper, lower);
-    } else {
-      position = sprintf(text, "%ld.%ld", upper, lower);
-    }
+    // see if decimal places have to be printed
+    position += sprintf(text + position, ".%06lu", lower);
     // remove extra zeros
     while (text[position - 1] == '0') {
       position--;
     }
-  } else {
-    position = sprintf(text, "%ld", upper);
   }
+  return true;
+}
+
+void Calculator::Reset() {
+  position = 0;
+  lv_label_set_text_static(result, "0");
 }
 
 void Calculator::OnButtonEvent(lv_obj_t* obj, lv_event_t event) {
-  if (event == LV_EVENT_CLICKED) {
+  switch (event) {
+  case LV_EVENT_CLICKED:
     if (obj == buttonMatrix) {
       const char* buttonstr = lv_btnmatrix_get_active_btn_text(obj);
       if (*buttonstr == '=') {
-        eval();
+        if (!Eval()) break;
       } else {
-        if (position >= 30) {
-          motorController.RunForDuration(10);
-          return;
-        }
+        if (position >= 30) break;
         text[position] = *buttonstr;
         position++;
       }
     } else if (obj == returnButton) {
       if (position > 1) {
-
         position--;
       } else {
-        position = 0;
-        lv_label_set_text(result, "0");
+        Reset();
         return;
       }
     }
-
     text[position] = '\0';
-    lv_label_set_text(result, text);
+    lv_label_set_text_static(result, text);
+    [[fallthrough]];
+  default:
+    return;
   }
+  motorController.RunForDuration(10);
 }
 
 bool Calculator::OnTouchEvent(Pinetime::Applications::TouchEvents event) {
-  if (event == Pinetime::Applications::TouchEvents::LongTap) {
-    position = 0;
-    lv_label_set_text(result, "0");
-    return true;
+  switch (event) {
+    case Pinetime::Applications::TouchEvents::LongTap:
+      Reset();
+      break;
+    case Pinetime::Applications::TouchEvents::SwipeLeft:
+      lv_btnmatrix_set_map(buttonMatrix, buttonMap2);
+      break;
+    case Pinetime::Applications::TouchEvents::SwipeRight:
+      lv_btnmatrix_set_map(buttonMatrix, buttonMap1);
+      break;
+    default:
+      return false;
   }
-  if (event == Pinetime::Applications::TouchEvents::SwipeLeft) {
-    lv_btnmatrix_set_map(buttonMatrix, buttonMap2);
-    return true;
-  }
-  if (event == Pinetime::Applications::TouchEvents::SwipeRight) {
-    lv_btnmatrix_set_map(buttonMatrix, buttonMap1);
-    return true;
-  }
-  return false;
+  return true;
 }

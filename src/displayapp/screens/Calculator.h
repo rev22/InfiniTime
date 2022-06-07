@@ -5,7 +5,6 @@
 #include "Screen.h"
 #include "components/motor/MotorController.h"
 #include <array>
-#include <string>
 
 namespace Pinetime {
   namespace Applications {
@@ -27,7 +26,8 @@ namespace Pinetime {
         char text[31];
         uint8_t position = 0;
 
-        void eval();
+        bool Eval();
+        void Reset();
 
         Controllers::MotorController& motorController;
       };
