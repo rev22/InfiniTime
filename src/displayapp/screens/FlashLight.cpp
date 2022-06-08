@@ -74,25 +74,23 @@ void FlashLight::Update(bool on, Controllers::BrightnessController::Levels level
   }
 
   if (on != isOn) {
+    decltype(color) color1, color2;
     isOn = on;
     if (isOn) {
       brightnessController.Backup();
-      lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
-      lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-      for (auto & i : indicators) {
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, color);
-        lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-      }
+      color1 = color;
+      color2 = LV_COLOR_GRAY;
     } else {
       brightnessController.Restore();
-      lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
-      lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color);
-      for (auto & i : indicators) {
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
-        lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, LV_COLOR_BLACK);
-        lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
-      }
+      color1 = LV_COLOR_BLACK;
+      color2 = color;
+    }
+    lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color1);
+    lv_obj_set_style_local_text_color(flashLight, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color2);
+    for (auto& i : indicators) {
+      lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color2);
+      lv_obj_set_style_local_bg_color(i, LV_OBJ_PART_MAIN, LV_STATE_DISABLED, color1);
+      lv_obj_set_style_local_border_color(i, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color2);
     }
   }
 
@@ -102,21 +100,21 @@ void FlashLight::Update(bool on, Controllers::BrightnessController::Levels level
 }
 
 bool FlashLight::OnTouchEvent(Pinetime::Applications::TouchEvents event) {
-  using namespace Pinetime::Controllers;
+  // using namespace Pinetime::Controllers;
+  auto level = static_cast< std::underlying_type_t<Levels> >(brightnessLevel);
 
-  if (event == TouchEvents::SwipeLeft) {
-    if (brightnessLevel >= Levels::Medium) {
-      Update(isOn, static_cast<Levels>( static_cast< std::underlying_type_t<Levels> >(brightnessLevel) - 1) );
-    }
-    return true;
-  }
-  
-  if (event == TouchEvents::SwipeRight) {
-    if (brightnessLevel <= Levels::Medium) {
-      Update(isOn, static_cast<Levels>( static_cast< std::underlying_type_t<Levels> >(brightnessLevel) + 1) );
-    }
-    return true;
+  switch (event) {
+    case TouchEvents::SwipeLeft:
+      if (brightnessLevel >= Levels::Medium) level--;
+      break;
+    case TouchEvents::SwipeRight:
+      if (brightnessLevel <= Levels::Medium) level++;
+      break;
+    default:
+      return false;
   }
 
-  return false;
+  Update(isOn, static_cast<Levels>(level));
+  return true;
 }
+
