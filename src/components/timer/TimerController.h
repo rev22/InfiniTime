@@ -2,9 +2,6 @@
 
 #include <FreeRTOS.h>
 #include <timers.h>
-#include <cstdint>
-#include "app_timer.h"
-#include "portmacro_cmsis.h"
 
 namespace Pinetime {
   namespace System {
@@ -16,7 +13,10 @@ namespace Pinetime {
     public:
       TimerController() = default;
 
+      void Init(System::SystemTask* systemTask);
+
       void StartTimer(uint32_t duration);
+
       void StopTimer();
 
       uint32_t GetTimeRemaining();
@@ -25,15 +25,9 @@ namespace Pinetime {
 
       void OnTimerEnd();
 
-    protected:
-      friend class Pinetime::System::SystemTask;
-      void Init(System::SystemTask* systemTask);
-
     private:
       System::SystemTask* systemTask = nullptr;
-      TimerHandle_t timerAppTimer;
-      TickType_t endTicks;
-      bool timerRunning = false;
+      TimerHandle_t timer;
     };
   }
 }

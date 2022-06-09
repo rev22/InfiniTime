@@ -21,8 +21,8 @@ namespace {
     return "";
   }
 
-  static void btnStartStopEventHandler(lv_obj_t* obj, lv_event_t event) {
-    HeartRate* screen = static_cast<HeartRate*>(obj->user_data);
+  void btnStartStopEventHandler(lv_obj_t* obj, lv_event_t event) {
+    auto* screen = static_cast<HeartRate*>(obj->user_data);
     screen->OnStartStopEvent(event);
   }
 }
@@ -39,7 +39,7 @@ HeartRate::HeartRate(Pinetime::Applications::DisplayApp* app,
   if (isHrRunning)
     lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_LIME);
   else
-    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xb0, 0xb0, 0xb0));
 
   lv_label_set_text_static(label_hr, "000");
   lv_obj_align(label_hr, nullptr, LV_ALIGN_CENTER, 0, -40);
@@ -49,7 +49,7 @@ HeartRate::HeartRate(Pinetime::Applications::DisplayApp* app,
   lv_obj_align(label_bpm, label_hr, LV_ALIGN_OUT_TOP_MID, 0, -20);
 
   label_status = lv_label_create(lv_scr_act(), nullptr);
-  lv_obj_set_style_local_text_color(label_status, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x222222));
+  lv_obj_set_style_local_text_color(label_status, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
   lv_label_set_text_static(label_status, ToString(Pinetime::Controllers::HeartRateController::States::NotEnoughData));
 
   lv_obj_align(label_status, label_hr, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
@@ -102,7 +102,7 @@ void HeartRate::OnStartStopEvent(lv_event_t event) {
       heartRateController.Stop();
       UpdateStartStopButton(heartRateController.State() != Controllers::HeartRateController::States::Stopped);
       systemTask.PushMessage(Pinetime::System::Messages::EnableSleeping);
-      lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+      lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xb0, 0xb0, 0xb0));
     }
   }
 }

@@ -17,9 +17,14 @@
 */
 #include "components/alarm/AlarmController.h"
 #include "systemtask/SystemTask.h"
-#include "app_timer.h"
 #include "task.h"
 #include <chrono>
+#include <ratio>
+#include <cstdint>
+
+namespace {
+  typedef std::chrono::duration< int64_t, std::ratio<1, configTICK_RATE_HZ> > ticks_t;
+}
 
 using namespace Pinetime::Controllers;
 using namespace std::chrono_literals;
@@ -36,7 +41,7 @@ namespace {
 
 void AlarmController::Init(System::SystemTask* systemTask) {
   this->systemTask = systemTask;
-  alarmAppTimer = xTimerCreate("alarmAppTm", 1, pdFALSE, this, SetOffAlarm);
+  alarmTimer = xTimerCreate("Alarm", 1, pdFALSE, this, SetOffAlarm);
 }
 
 void AlarmController::SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin) {
@@ -45,32 +50,30 @@ void AlarmController::SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin) {
 }
 
 void AlarmController::OnAdjustTime() {
-
   if (state != AlarmState::Set) {
     return;
   }
 
-  xTimerStop(alarmAppTimer, 0);
+  xTimerStop(alarmTimer, 0);
   auto now = dateTimeController.CurrentDateTime();
 
-  if (now > alarmTime) {
-    xTimerChangePeriod(alarmAppTimer, 1, 0);
+  if (now >= alarmTime) {
+    xTimerChangePeriod(alarmTimer, 1, 0);
   } else {
-    auto mSecToAlarm = std::chrono::duration_cast<std::chrono::milliseconds>(alarmTime - now).count();
-    xTimerChangePeriod(alarmAppTimer, APP_TIMER_TICKS(mSecToAlarm), 0);
+    auto ticksToAlarm = std::chrono::duration_cast<ticks_t>(alarmTime - now).count();
+    xTimerChangePeriod(alarmTimer, ++ticksToAlarm, 0);
   }
 
-  xTimerStart(alarmAppTimer, 0);
+  xTimerStart(alarmTimer, 0);
 }
 
 void AlarmController::ScheduleAlarm() {
   // Determine the next time the alarm needs to go off and set the timer
-  xTimerStop(alarmAppTimer, 0);
+  xTimerStop(alarmTimer, 0);
 
   auto now = dateTimeController.CurrentDateTime();
   alarmTime = now;
-  time_t ttAlarmTime = std::chrono::system_clock::to_time_t(
-    std::chrono::time_point_cast<std::chrono::system_clock::duration>(alarmTime));
+  time_t ttAlarmTime = std::chrono::system_clock::to_time_t(std::chrono::time_point_cast<std::chrono::system_clock::duration>(alarmTime));
   tm* tmAlarmTime = std::localtime(&ttAlarmTime);
 
   // If the time being set has already passed today,the alarm should be set for tomorrow
@@ -96,9 +99,9 @@ void AlarmController::ScheduleAlarm() {
 
   // now can convert back to a time_point
   alarmTime = std::chrono::system_clock::from_time_t(std::mktime(tmAlarmTime));
-  auto mSecToAlarm = std::chrono::duration_cast<std::chrono::milliseconds>(alarmTime - now).count();
-  xTimerChangePeriod(alarmAppTimer, APP_TIMER_TICKS(mSecToAlarm), 0);
-  xTimerStart(alarmAppTimer, 0);
+  auto ticksToAlarm = std::chrono::duration_cast<ticks_t>(alarmTime - now).count();
+  xTimerChangePeriod(alarmTimer, ++ticksToAlarm, 0);
+  xTimerStart(alarmTimer, 0);
 
   state = AlarmState::Set;
 }
@@ -108,7 +111,7 @@ uint32_t AlarmController::SecondsToAlarm() {
 }
 
 void AlarmController::DisableAlarm() {
-  xTimerStop(alarmAppTimer, 0);
+  xTimerStop(alarmTimer, 0);
   state = AlarmState::Not_Set;
 }
 
@@ -118,20 +121,12 @@ void AlarmController::SetOffAlarmNow() {
 }
 
 void AlarmController::StopAlerting() {
-  systemTask->PushMessage(System::Messages::StopRinging);
-}
-
-void AlarmController::OnStopRinging() {
-  if (state != AlarmState::Alerting) {
-    return;
-  }
-
   // Alarm state is off unless this is a recurring alarm
   if (recurrence == RecurType::None) {
     state = AlarmState::Not_Set;
   } else {
-    state = AlarmState::Set;
     // set next instance
     ScheduleAlarm();
   }
+  systemTask->PushMessage(System::Messages::StopRinging);
 }

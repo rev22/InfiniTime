@@ -44,7 +44,7 @@ namespace {
   }
 
   bool IsBleIconVisible(bool isRadioEnabled, bool isConnected) {
-    if(!isRadioEnabled) {
+    if (!isRadioEnabled) {
       return true;
     }
     return isConnected;
@@ -52,12 +52,12 @@ namespace {
 }
 
 WatchFacePineTimeStyle::WatchFacePineTimeStyle(DisplayApp* app,
-                             Controllers::DateTime& dateTimeController,
-                             Controllers::Battery& batteryController,
-                             Controllers::Ble& bleController,
-                             Controllers::NotificationManager& notificatioManager,
-                             Controllers::Settings& settingsController,
-                             Controllers::MotionController& motionController)
+                                               Controllers::DateTime& dateTimeController,
+                                               Controllers::Battery& batteryController,
+                                               Controllers::Ble& bleController,
+                                               Controllers::NotificationManager& notificatioManager,
+                                               Controllers::Settings& settingsController,
+                                               Controllers::MotionController& motionController)
   : Screen(app),
     currentDateTime {{}},
     dateTimeController {dateTimeController},
@@ -101,11 +101,14 @@ WatchFacePineTimeStyle::WatchFacePineTimeStyle(DisplayApp* app,
   lv_obj_align(sidebar, lv_scr_act(), LV_ALIGN_IN_TOP_RIGHT, 0, 0);
 
   // Display icons
-  batteryIcon = lv_label_create(lv_scr_act(), nullptr);
-  lv_obj_set_style_local_text_color(batteryIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
-  lv_label_set_text_static(batteryIcon, Symbols::batteryFull);
-  lv_obj_align(batteryIcon, sidebar, LV_ALIGN_IN_TOP_MID, 0, 2);
-  lv_obj_set_auto_realign(batteryIcon, true);
+  batteryIcon.Create(sidebar);
+  batteryIcon.SetColor(LV_COLOR_BLACK);
+  lv_obj_align(batteryIcon.GetObject(), nullptr, LV_ALIGN_IN_TOP_MID, 0, 2);
+
+  plugIcon = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(plugIcon, Symbols::plug);
+  lv_obj_set_style_local_text_color(plugIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+  lv_obj_align(plugIcon, sidebar, LV_ALIGN_IN_TOP_MID, 0, 2);
 
   bleIcon = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_color(bleIcon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, lv_color_hex(0x000000));
@@ -194,13 +197,6 @@ WatchFacePineTimeStyle::WatchFacePineTimeStyle(DisplayApp* app,
   lv_obj_set_style_local_line_opa(stepGauge, LV_GAUGE_PART_NEEDLE, LV_STATE_DEFAULT, LV_OPA_COVER);
   lv_obj_set_style_local_line_width(stepGauge, LV_GAUGE_PART_NEEDLE, LV_STATE_DEFAULT, 3);
   lv_obj_set_style_local_pad_inner(stepGauge, LV_GAUGE_PART_NEEDLE, LV_STATE_DEFAULT, 4);
-
-  backgroundLabel = lv_label_create(lv_scr_act(), nullptr);
-  lv_obj_set_click(backgroundLabel, true);
-  lv_label_set_long_mode(backgroundLabel, LV_LABEL_LONG_CROP);
-  lv_obj_set_size(backgroundLabel, 240, 240);
-  lv_obj_set_pos(backgroundLabel, 0, 0);
-  lv_label_set_text_static(backgroundLabel, "");
 
   btnNextTime = lv_btn_create(lv_scr_act(), nullptr);
   btnNextTime->user_data = this;
@@ -340,7 +336,7 @@ bool WatchFacePineTimeStyle::OnButtonPushed() {
 
 void WatchFacePineTimeStyle::SetBatteryIcon() {
   auto batteryPercent = batteryPercentRemaining.Get();
-  lv_label_set_text_static(batteryIcon, BatteryIcon::GetBatteryIcon(batteryPercent));
+  batteryIcon.SetBatteryPercentage(batteryPercent);
 }
 
 void WatchFacePineTimeStyle::AlignIcons() {
@@ -358,8 +354,11 @@ void WatchFacePineTimeStyle::Refresh() {
   isCharging = batteryController.IsCharging();
   if (isCharging.IsUpdated()) {
     if (isCharging.Get()) {
-      lv_label_set_text_static(batteryIcon, Symbols::plug);
+      lv_obj_set_hidden(batteryIcon.GetObject(), true);
+      lv_obj_set_hidden(plugIcon, false);
     } else {
+      lv_obj_set_hidden(batteryIcon.GetObject(), false);
+      lv_obj_set_hidden(plugIcon, true);
       SetBatteryIcon();
     }
   }

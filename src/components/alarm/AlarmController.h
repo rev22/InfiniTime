@@ -31,6 +31,7 @@ namespace Pinetime {
     public:
       AlarmController(Controllers::DateTime& dateTimeController);
 
+      void Init(System::SystemTask* systemTask);
       void SetAlarmTime(uint8_t alarmHr, uint8_t alarmMin);
       void ScheduleAlarm();
       void OnAdjustTime();
@@ -56,15 +57,10 @@ namespace Pinetime {
         recurrence = recurType;
       }
 
-    protected:
-      friend class Pinetime::System::SystemTask;
-      void Init(System::SystemTask* systemTask);
-      void OnStopRinging();
-
     private:
       Controllers::DateTime& dateTimeController;
       System::SystemTask* systemTask = nullptr;
-      TimerHandle_t alarmAppTimer;
+      TimerHandle_t alarmTimer;
       uint8_t hours = 7;
       uint8_t minutes = 0;
       std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> alarmTime;
