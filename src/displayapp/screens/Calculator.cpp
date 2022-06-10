@@ -4,17 +4,12 @@
 #include <cmath>
 #include <map>
 #include <memory>
-#include <string>
 
 using namespace Pinetime::Applications::Screens;
 
-// Anonymous Namespace for all the structs
 namespace {
-  struct Node {
-    char op;
-    double val;
-  };
-  template <typename X, uint8_t max_stack_len> struct StaticallyAllocatedStack {
+  template <typename X, uint8_t max_stack_len> struct Stack {
+    // Basic stack data type without dynamic allocations
     X data[max_stack_len];
     uint8_t stack_len = 0;
     inline auto   size()   { return stack_len;                }
@@ -25,55 +20,44 @@ namespace {
     inline X&  push()   { return data[stack_len++];        }
     inline void push(X x) { X& datum{ push() }; datum = x; }
   };
-  template <uint8_t max_stack_len> struct CalcStack : public StaticallyAllocatedStack<Node, max_stack_len> {
-    typedef StaticallyAllocatedStack<Node, max_stack_len> Super;
-    inline Node& push() { return Super::push(); }
+  template <uint8_t max_stack_len> struct CalcStack : public Stack<double, max_stack_len> {
+    typedef Stack<double, max_stack_len> Super;
     inline void pushValue(double value) {
-      Super::data[Super::stack_len].op = 0;
-      Super::data[Super::stack_len].val = value;
-      Super::stack_len++;
+      Super::push(value);
     }
-    void pushOperator(char op) {
-      Node* node0 = Super::data + Super::stack_len;
-      node0->op = op;
-      if (Super::stack_len > 1) {
-        Node* node1 = node0 - 1;
-        if (node1->op == 0) {
-          Node* node2 = node1 - 1;
-          auto val2 = node2->val;
-          auto val1 = node1->val;
-          if (node2->op == 0) {
-            switch (op) {
-            case '^':
-              val2 = pow(val2, val1);
-              break;
-            case 'x':
-              val2 *= val1;
-              break;
-            case '/':
-              val2 /= val1;
-              break;
-            case '+':
-              val2 += val1;
-              break;
-            case '-':
-              val2 -= val1;
-              break;
-            default:
-              goto done;
-            }
-          }
-          node2->val = val2;
-          Super::stack_len--;
-          return;
-        } 
+    bool pushOperator(char op) {
+      if (Super::size() < 2) return false;
+      double* node0 = Super::data + Super::stack_len;
+      // Call this only when stack_len >= 2
+      // Evaluate subexpressions as soon as possible
+      // Inf and NaN take care of error handling in case of non-finite results
+      auto& val2 { node0[-2] };
+      auto val1 = node0[-1];
+      switch (op) {
+      case '^':
+        val2 = pow(val2, val1);
+        break;
+      case 'x':
+        val2 *= val1;
+        break;
+      case '/':
+        val2 /= val1;
+        break;
+      case '+':
+        val2 += val1;
+        break;
+      case '-':
+        val2 -= val1;
+        break;
+      default:
+        return false;
       }
-     done:
-      Super::stack_len++;
+      Super::stack_len--;
+      return true;
     }
   };
 
-  template <typename I, typename F, typename S> bool parseFloat(I& i, F& f, S& s) {
+  template <typename Input, typename Float, typename Sign> inline bool parseFloat(Input& i, Float& f, Sign& s) {
     f = 0;
     int8_t dot_position = -1;
     while (!i.empty()) {
@@ -170,13 +154,14 @@ Calculator::Calculator(DisplayApp* app, Controllers::MotorController& motorContr
   lv_obj_set_event_cb(buttonMatrix, eventHandler);
 }
 
-void Calculator::Eval() {
-  StaticallyAllocatedStack<char, 32> input;
+bool Calculator::Eval() {
+  // The given sizes should be enough for parsing 30 characters
+  Stack<char, 32> input;
+  CalcStack<16> output;
+  Stack<char, 32> operators;
   for (int8_t i = position - 1; i >= 0; i--) {
     input.push(text[i]);
   }
-  CalcStack<16> output;
-  StaticallyAllocatedStack<char, 32> operators;
   bool expectingNumber = true;
   int8_t sign = +1;
   double resultFloat;
@@ -187,10 +172,7 @@ void Calculator::Eval() {
     }
 
     if (isdigit(input.top())) {
-      if (!parseFloat(input, output.push().val, sign)) {
-        goto eval_error;
-      }
-      output.top().op = 0;
+      if (!parseFloat(input, output.push(), sign)) return false;
       sign = +1;
       expectingNumber = false;
       continue;
@@ -203,12 +185,8 @@ void Calculator::Eval() {
           [[fallthrough]];
         case '+':
           input.pop();
-          break;
-        default:
-          goto not_sign;
+          continue;
       }
-      continue;
-     not_sign: ;
     }
 
     char next = input.top();
@@ -229,10 +207,7 @@ void Calculator::Eval() {
                    // or (the operator at the top of the operator stack has equal precedence and the token is left associative))
                    || (getPrecedence(operators.top()) == getPrecedence(next) && leftAssociative(next)))) {
           // need two elements on the output stack to add a binary operator
-          if (output.size() < 2) {
-            goto eval_error;
-          }
-          output.pushOperator(operators.top());
+          if (!output.pushOperator(operators.top())) return false;
           operators.pop();
         }
         operators.push(next);
@@ -258,51 +233,28 @@ void Calculator::Eval() {
       case ')':
         while (operators.top() != '(') {
           // need two elements on the output stack to add a binary operator
-          if (output.size() < 2) {
-            goto eval_error;
-          }
-          output.pushOperator(operators.top());
+          if (!output.pushOperator(operators.top())) return false;
           operators.pop();
-          if (operators.empty()) {
-            goto eval_error;
-          }
+          if (operators.empty()) return false;
         }
         // discard the left parentheses
         operators.pop();
     }
   }
   while (!operators.empty()) {
-    char op = operators.pop();
-    if ((op == ')' || op == '(')
-        ||
-        // need two elements on the output stack to add a binary operator
-        (output.size() < 2))
-    {
-      goto eval_error;
-    }
-    output.pushOperator(op);
+    if (!output.pushOperator(operators.top())) return false;
+    operators.pop();
   }
   // perform the calculation
-  resultFloat = output.top().val;
-#if 0
-  // This only seems to work in the simulator
-  if (!std::isfinite(resultFloat)) {
-    goto eval_error;
-  }
-  position = 0;
-  for (char s : std::to_string(resultFloat)) {
-    text[position++] = s;
-  }
-  text[position] = 0;
-#else
-  // position = snprintf(text, 20, "%.9g", resultFloat);
+  // assert(output.size() == 1);
+  resultFloat = output.data[0]; // this is the same as output.top() when output.size() == 1, but may reduce binary size
   // make sure that the absolute value of the integral part of result fits in a 32 bit unsigned integer
   sign = (resultFloat < 0);
   if (sign) {
     resultFloat = -resultFloat;
   }
   if (!(resultFloat <= UINT32_MAX)) {
-    goto eval_error; // if too large or NaN
+    return false; // if too large or NaN
   }
   if (sign) {
     text[0] = '-';
@@ -326,10 +278,7 @@ void Calculator::Eval() {
       position--;
     }
   }
-#endif
-  return;
- eval_error:
-  motorController.RunForDuration(10);
+  return true;
 }
 
 void Calculator::Reset() {
@@ -338,16 +287,14 @@ void Calculator::Reset() {
 }
 
 void Calculator::OnButtonEvent(lv_obj_t* obj, lv_event_t event) {
-  if (event == LV_EVENT_CLICKED) {
+  switch (event) {
+  case LV_EVENT_CLICKED:
     if (obj == buttonMatrix) {
       const char* buttonstr = lv_btnmatrix_get_active_btn_text(obj);
       if (*buttonstr == '=') {
-        Eval();
+        if (!Eval()) break;
       } else {
-        if (position >= 30) {
-          motorController.RunForDuration(10);
-          return;
-        }
+        if (position >= 30) break;
         text[position] = *buttonstr;
         position++;
       }
@@ -359,10 +306,13 @@ void Calculator::OnButtonEvent(lv_obj_t* obj, lv_event_t event) {
         return;
       }
     }
-
     text[position] = '\0';
     lv_label_set_text_static(result, text);
+    [[fallthrough]];
+  default:
+    return;
   }
+  motorController.RunForDuration(10);
 }
 
 bool Calculator::OnTouchEvent(Pinetime::Applications::TouchEvents event) {
