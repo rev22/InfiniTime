@@ -55,6 +55,9 @@ jobs:
       #########################################################################################
       # Build and Upload simulator
 
+      # For Debugging Builds: Remove "make" option "-j" for clearer output. Add "--trace" to see details.
+      # For Faster Builds: Add "make" option "-j"
+
       - name: Build simulator executable
         run:  |
           cmake --build build_lv_sim
